@@ -1,4 +1,4 @@
-# POL-06: Gestión de Cambios en Producción e Incidentes
+﻿# POL-06: Gestión de Cambios en Producción e Incidentes
 
 - **Código:** POL-06
 - **Propietario:** Gerencia Comercial y Seguridad de la Información

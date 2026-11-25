@@ -11,7 +11,6 @@
 | MongoDB `system.profile` | Rotación por tamaño (`capped collection`) | Exportación mensual a archivo de auditoría | Monitoreo de consultas y trazabilidad operativa en base documental. | Rotación automática del motor tras respaldo de evidencia. |
 
 ## Respuestas
-
 1. **¿Por qué los registros de auditoría (`auditoria.cambios_clientes`) no deben borrarse aunque un cliente solicite cancelar su cuenta?**
    Porque la auditoría constituye evidencia legal y de control interno sobre qué operaciones ocurrieron y quién las autorizó. En caso de cancelación (derecho de cancelación/oposición ARCO), se anonimizan los datos personales en la tabla operativa tras vencer el plazo fiscal, pero se conserva el rastro de auditoría con acceso estrictamente restringido.
 2. **¿Cómo se garantiza que una bitácora exportada (`E5-bitacora-postgresql.log`) no fue alterada después de su generación?**

@@ -1,22 +1,18 @@
-# Actividad 2: Propietarios, custodios y usuarios
+﻿# Actividad 2: Responsables y Segregación de Funciones
 
-## Matriz de Responsables de Datos
+## Matriz de Responsabilidades (`comercial`)
 
-| Conjunto de datos | Propietario | Custodio | Usuarios autorizados | Quién aprueba accesos | Quién aprueba correcciones |
-|---|---|---|---|---|---|
-| `comercial.public.clientes` (PostgreSQL) | Gerencia Comercial | DBA | `app_ventas` (lectura/escritura), `soporte_ana` (solo lectura) | Gerencia Comercial | Gerencia Comercial |
-| `auditoria.cambios_clientes` (PostgreSQL) | Auditoría Interna / Seguridad de la Información | DBA | Auditoría Interna (lectura), disparador `trg_auditoria_clientes` (escritura automática) | Auditoría Interna / Seguridad de la Información | Ninguno (registro de auditoría inmutable; no se corrige) |
-| Bitácora de PostgreSQL (`pg_log` / `dba.bitacora`) | Seguridad de la Información / Auditoría Interna | DBA | DBA y Auditoría Interna (solo lectura) | Seguridad de la Información / Auditoría Interna | Ninguno (evidencia técnica inmutable; no se edita) |
-| `comercial.clientes` (MongoDB) | Gerencia Comercial | DBA | Aplicación de tienda en línea, equipo de soporte | Gerencia Comercial | Gerencia Comercial |
-| `comercial.system.profile` (MongoDB) | Seguridad de la Información / Auditoría Interna | DBA | DBA y Auditoría Interna (solo lectura) | Seguridad de la Información / Auditoría Interna | Ninguno (colección rotativa gestionada por el motor) |
+| Rol / Área | Tipo de responsabilidad | Alcance / Permisos | Restricciones |
+|---|---|---|---|
+| **Gerencia Comercial** | Propietario del dato (*Data Owner*) | Define reglas de negocio, calidad y autorización de cambios en `clientes`. | No ejecuta cambios técnicos directos en el motor. |
+| **Seguridad de la Información** | Normativa / Vigilancia | Define políticas de acceso, auditoría, bitácoras y datos sensibles (`POL-01`–`POL-06`). | Supervisa cumplimiento sin operar DML de negocio. |
+| **Auditoría Interna** | Control / Revisión | Revisa `auditoria.cambios_clientes`, conciliaciones y trazabilidad de incidentes. | Consulta de auditoría; no altera registros históricos. |
+| **DBA (`postgres`)** | Custodio técnico (*Data Steward* / Admin) | Mantiene motor, respaldos, esquemas (`auditoria`, `dba`), vistas y controles. | Prohibido corregir datos de negocio sin aprobación del propietario. |
+| **`app_ventas`** | Rol de aplicación | `SELECT` y `UPDATE` sobre `public.clientes`. | Sin `DELETE`, sin `DROP` ni acceso a esquemas de control. |
+| **`soporte_ana`** | Rol de soporte | Consulta controlada (vista enmascarada `vw_clientes_soporte` / `SELECT`). | Sin permisos de escritura (`INSERT`, `UPDATE`, `DELETE`). |
 
 ## Respuestas
-
-1. **¿Por qué el propietario de `auditoria.cambios_clientes` no debería ser el mismo que opera `clientes`?**
-   Por el principio de **segregación de funciones**. Si la Gerencia Comercial (propietaria de `clientes`) o el equipo operativo que modifica los datos también fuera propietario de la tabla de auditoría, tendría autoridad para aprobar la modificación o eliminación de sus propios rastros, invalidando la independencia y confiabilidad de la evidencia ante una revisión.
-
-2. **¿Quién debería poder leer las bitácoras y la vista `dba.bitacora`? Relaciónalo con lo observado en el LAB-01 (secretos en la bitácora).**
-   Únicamente el **DBA** (en su rol de custodio operativo) y **Auditoría Interna / Seguridad de la Información**, aplicando el principio de mínimo privilegio. Como se observó en el LAB-01, cuando `log_statement` registra sentencias DDL o DCL, la bitácora captura credenciales en texto claro (por ejemplo, `CREATE ROLE rol_temporal LOGIN PASSWORD 'Temporal_Practica_2026'`). Si usuarios generales o de aplicación leyeran `dba.bitacora`, quedarían expuestas contraseñas y datos sensibles de operaciones `INSERT`/`UPDATE`.
-
-3. **¿Qué ocurre con la responsabilidad sobre un dato cuando nadie la tiene asignada? Relaciónalo con el problema inicial de la unidad.**
-   Se produce un vacío de rendición de cuentas ("tierra de nadie") que impide gobernar el dato. Tal como plantea el problema inicial de la unidad, sin un propietario asignado nadie puede decidir oficialmente si el RFC de un cliente puede corregirse, qué valor es el válido ni si un cambio registrado en la bitácora fue legítimo o indebido, obligando al DBA a asumir decisiones de negocio que no le corresponden o dejando errores críticos sin resolver.
+1. **¿Por qué el rol de aplicación (`app_ventas`) no debe tener privilegios de superusuario ni acceso directo a esquemas de administración?**
+   Bajo el principio de mínimo privilegio, si la aplicación se ve comprometida, un rol con permisos excesivos o acceso a esquemas de control permitiría alterar auditorías, borrar datos o escalar privilegios.
+2. **¿Qué ventaja tiene separar al propietario del dato del custodio técnico?**
+   Evita decisiones unilaterales sobre el valor de negocio de los datos y crea controles cruzados: el negocio decide qué es válido o qué cambio procede, y el custodio garantiza la integridad técnica y la trazabilidad.

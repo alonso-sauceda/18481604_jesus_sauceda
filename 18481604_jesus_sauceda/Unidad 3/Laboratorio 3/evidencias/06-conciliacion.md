@@ -10,7 +10,6 @@
 | 4 | Inserción de registros con anomalías (`IDs 7 y 8`) | Sí (`id_evento` 8 y 9, `INSERT`) | Sí (`INSERT INTO clientes`) | Conciliado (hallazgo calidad) | Evidencia preservada sin borrar; escalada a Gerencia Comercial (`01-calidad.md`). |
 
 ## Respuestas
-
 1. **¿Por qué es indispensable cruzar `auditoria.cambios_clientes` con `dba.bitacora` en lugar de confiar en una sola fuente?**
    Porque cada mecanismo cubre puntos ciegos del otro: `auditoria.cambios_clientes` guarda los valores exactos antes y después en formato estructurado (`JSONB`), mientras que `dba.bitacora` registra comandos administrativos (`ALTER TABLE`, `DISABLE TRIGGER`, conexiones y roles) que un disparador de tabla nunca puede capturar.
 2. **¿Qué debe hacer el DBA si detecta en `dba.bitacora` una operación DML sobre `clientes` que no aparece en `auditoria.cambios_clientes`?**

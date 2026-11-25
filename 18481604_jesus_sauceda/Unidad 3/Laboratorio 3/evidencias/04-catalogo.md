@@ -13,7 +13,6 @@
 | `comercial.system.profile` | Colección | MongoDB | Restringido (Auditoría) | Seguridad de la Información | DBA | Registro de operaciones lentas o auditadas en MongoDB. |
 
 ## Respuestas
-
 1. **¿Qué riesgo existe cuando se crean tablas o vistas temporales/de prueba sin registrarlas en el catálogo?**
    Se genera "datos ocultos" (*shadow data*): copias sin control de acceso ni enmascaramiento que pueden contener datos personales (RFC, correos, teléfonos) fuera del alcance de auditoría, aumentando el riesgo de fuga de información y desactualización frente a la fuente oficial.
 2. **¿Por qué el catálogo debe incluir tanto tablas de negocio como objetos de control (`auditoria`, `dba`)?**
