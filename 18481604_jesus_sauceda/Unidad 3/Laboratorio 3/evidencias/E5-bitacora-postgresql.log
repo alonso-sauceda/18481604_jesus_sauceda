@@ -1,0 +1,284 @@
+2026-11-22 18:59:37.044 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: CREATE SCHEMA IF NOT EXISTS auditoria;
+2026-11-22 18:59:37.051 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: CREATE SCHEMA IF NOT EXISTS dba;
+2026-11-22 18:59:37.054 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: REVOKE ALL ON SCHEMA auditoria FROM PUBLIC;
+2026-11-22 18:59:37.060 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: REVOKE ALL ON SCHEMA dba FROM PUBLIC;
+2026-11-22 18:59:37.064 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: CREATE ROLE app_ventas LOGIN PASSWORD 'Ventas_Practica_2026';
+2026-11-22 18:59:37.081 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: CREATE ROLE soporte_ana LOGIN PASSWORD 'Soporte_Practica_2026';
+2026-11-22 18:59:37.094 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: CREATE ROLE rol_temporal LOGIN PASSWORD 'Temporal_Practica_2026';
+2026-11-22 18:59:37.126 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: CREATE TABLE public.clientes (
+	    id BIGSERIAL PRIMARY KEY,
+	    nombre VARCHAR(120) NOT NULL,
+	    correo VARCHAR(150) NOT NULL,
+	    telefono VARCHAR(20),
+	    rfc VARCHAR(13),
+	    edad INT,
+	    ciudad VARCHAR(80),
+	    codigo_postal VARCHAR(10),
+	    fecha_alta DATE DEFAULT CURRENT_DATE
+	);
+2026-11-22 18:59:37.142 CST [4340] user=postgres db=comercial app=psql ERROR:  la relación «clientes» ya existe
+2026-11-22 18:59:37.142 CST [4340] user=postgres db=comercial app=psql SENTENCIA:  CREATE TABLE public.clientes (
+	    id BIGSERIAL PRIMARY KEY,
+	    nombre VARCHAR(120) NOT NULL,
+	    correo VARCHAR(150) NOT NULL,
+	    telefono VARCHAR(20),
+	    rfc VARCHAR(13),
+	    edad INT,
+	    ciudad VARCHAR(80),
+	    codigo_postal VARCHAR(10),
+	    fecha_alta DATE DEFAULT CURRENT_DATE
+	);
+2026-11-22 18:59:37.154 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: ALTER TABLE clientes ADD COLUMN segmento VARCHAR(20);
+2026-11-22 18:59:37.161 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: GRANT SELECT, UPDATE ON public.clientes TO app_ventas;
+2026-11-22 18:59:37.168 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: GRANT SELECT, UPDATE ON public.clientes TO soporte_ana;
+2026-11-22 18:59:37.169 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: REVOKE UPDATE ON public.clientes FROM soporte_ana;
+2026-11-22 18:59:37.181 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: CREATE TABLE auditoria.cambios_clientes (
+	    id_evento SERIAL PRIMARY KEY,
+	    momento TIMESTAMPTZ DEFAULT now(),
+	    usuario_sesion TEXT DEFAULT session_user,
+	    aplicacion TEXT DEFAULT current_setting('application_name'),
+	    operacion TEXT NOT NULL,
+	    id_cliente BIGINT,
+	    valores_antes JSONB,
+	    valores_despues JSONB
+	);
+2026-11-22 18:59:37.227 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: CREATE OR REPLACE FUNCTION auditoria.fn_auditar_clientes()
+	RETURNS TRIGGER AS $$
+	BEGIN
+	    IF TG_OP = 'INSERT' THEN
+	        INSERT INTO auditoria.cambios_clientes(operacion, id_cliente, valores_despues)
+	        VALUES ('INSERT', NEW.id, to_jsonb(NEW));
+	        RETURN NEW;
+	    ELSIF TG_OP = 'UPDATE' THEN
+	        INSERT INTO auditoria.cambios_clientes(operacion, id_cliente, valores_antes, valores_despues)
+	        VALUES ('UPDATE', NEW.id, to_jsonb(OLD), to_jsonb(NEW));
+	        RETURN NEW;
+	    ELSIF TG_OP = 'DELETE' THEN
+	        INSERT INTO auditoria.cambios_clientes(operacion, id_cliente, valores_antes)
+	        VALUES ('DELETE', OLD.id, to_jsonb(OLD));
+	        RETURN OLD;
+	    END IF;
+	    RETURN NULL;
+	END;
+	$$ LANGUAGE plpgsql SECURITY DEFINER;
+2026-11-22 18:59:37.242 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: CREATE TRIGGER trg_auditoria_clientes
+	AFTER INSERT OR UPDATE OR DELETE ON public.clientes
+	FOR EACH ROW EXECUTE FUNCTION auditoria.fn_auditar_clientes();
+2026-11-22 18:59:37.277 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: INSERT INTO public.clientes (nombre, correo, telefono, rfc, edad, ciudad, codigo_postal, fecha_alta, segmento) VALUES
+	('Ana L¢pez', 'ana.lopez@example.test', '6671112233', 'LOAA850315AB1', 41, 'Culiac n', '80000', '2025-01-15', 'Premium'),
+	('Mar¡a Garc¡a', 'maria.garcia@example.test', '6672223344', 'GARM900520XY2', 35, 'Mazatl n', '82000', '2025-02-10', 'Est ndar'),
+	('Carlos Ruiz', 'carlos.ruiz@example.test', '6673334455', 'RUIC881102KL9', 38, 'Los Mochis', '81200', '2025-03-05', 'Est ndar'),
+	('Laura M‚ndez', 'laura.mendez@example.test', '6674445566', 'MENL920714PQ3', 33, 'Culiac n', '80010', '2025-04-12', 'Premium'),
+	('Roberto Soto', 'roberto.soto@example.test', '6675556677', 'SOTR790930MN4', 46, 'Guasave', '81000', '2025-05-20', 'B sico'),
+	('Elena Castro', 'elena.castro@example.test', '6676667788', 'CASE951208RT5', 30, 'Culiac n', '80020', '2025-06-18', 'B sico');
+2026-11-22 18:59:37.278 CST [4340] user=postgres db=comercial app=psql ERROR:  no existe la columna «correo» en la relación «clientes» en carácter 38
+2026-11-22 18:59:37.278 CST [4340] user=postgres db=comercial app=psql SENTENCIA:  INSERT INTO public.clientes (nombre, correo, telefono, rfc, edad, ciudad, codigo_postal, fecha_alta, segmento) VALUES
+	('Ana L¢pez', 'ana.lopez@example.test', '6671112233', 'LOAA850315AB1', 41, 'Culiac n', '80000', '2025-01-15', 'Premium'),
+	('Mar¡a Garc¡a', 'maria.garcia@example.test', '6672223344', 'GARM900520XY2', 35, 'Mazatl n', '82000', '2025-02-10', 'Est ndar'),
+	('Carlos Ruiz', 'carlos.ruiz@example.test', '6673334455', 'RUIC881102KL9', 38, 'Los Mochis', '81200', '2025-03-05', 'Est ndar'),
+	('Laura M‚ndez', 'laura.mendez@example.test', '6674445566', 'MENL920714PQ3', 33, 'Culiac n', '80010', '2025-04-12', 'Premium'),
+	('Roberto Soto', 'roberto.soto@example.test', '6675556677', 'SOTR790930MN4', 46, 'Guasave', '81000', '2025-05-20', 'B sico'),
+	('Elena Castro', 'elena.castro@example.test', '6676667788', 'CASE951208RT5', 30, 'Culiac n', '80020', '2025-06-18', 'B sico');
+2026-11-22 18:59:37.296 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: UPDATE public.clientes SET rfc = 'GARM900520ZZ9' WHERE id = 2;
+2026-11-22 18:59:37.298 CST [4340] user=postgres db=comercial app=psql ERROR:  no existe la columna «rfc» en la relación «clientes» en carácter 28
+2026-11-22 18:59:37.298 CST [4340] user=postgres db=comercial app=psql SENTENCIA:  UPDATE public.clientes SET rfc = 'GARM900520ZZ9' WHERE id = 2;
+2026-11-22 18:59:37.318 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: ALTER TABLE public.clientes DISABLE TRIGGER trg_auditoria_clientes;
+2026-11-22 18:59:37.320 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: ALTER TABLE public.clientes ENABLE TRIGGER trg_auditoria_clientes;
+2026-11-22 18:59:38.253 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: CREATE OR REPLACE VIEW dba.bitacora AS
+	SELECT row_number() OVER () AS num, linea
+	FROM regexp_split_to_table(pg_read_file(pg_current_logfile()), E'\n') AS linea
+	WHERE linea <> '';
+2026-11-22 19:00:02.585 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: INSERT INTO clientes (nombre, correo, telefono, rfc, edad, ciudad, codigo_postal)
+	VALUES
+	('Ana Lopez', 'ANA.LOPEZ@example.test', '6671234567', 'LOAA850315AB', 41, 'Culiacan', '80000'),
+	('Jorge D¡az', 'sin-correo', '667', NULL, -3, 'Culiac n', '8000');
+2026-11-22 19:00:02.585 CST [4340] user=postgres db=comercial app=psql ERROR:  no existe la columna «correo» en la relación «clientes» en carácter 31
+2026-11-22 19:00:02.585 CST [4340] user=postgres db=comercial app=psql SENTENCIA:  INSERT INTO clientes (nombre, correo, telefono, rfc, edad, ciudad, codigo_postal)
+	VALUES
+	('Ana Lopez', 'ANA.LOPEZ@example.test', '6671234567', 'LOAA850315AB', 41, 'Culiacan', '80000'),
+	('Jorge D¡az', 'sin-correo', '667', NULL, -3, 'Culiac n', '8000');
+2026-11-22 19:00:02.601 CST [4340] user=postgres db=comercial app=psql ERROR:  no existe la columna «correo» en carácter 14
+2026-11-22 19:00:02.601 CST [4340] user=postgres db=comercial app=psql SENTENCIA:  SELECT lower(correo) AS correo_normalizado, count(*) AS registros, string_agg(id::text, ', ') AS ids
+	FROM clientes GROUP BY lower(correo) HAVING count(*) > 1;
+2026-11-22 19:00:02.609 CST [4340] user=postgres db=comercial app=psql ERROR:  no existe la columna «rfc» en carácter 20
+2026-11-22 19:00:02.609 CST [4340] user=postgres db=comercial app=psql SENTENCIA:  SELECT id, nombre, rfc FROM clientes WHERE rfc IS NULL OR rfc !~ '^[A-Z&]{3,4}[0-9]{6}[A-Z0-9]{3}$';
+2026-11-22 19:00:02.616 CST [4340] user=postgres db=comercial app=psql ERROR:  no existe la columna «correo» en carácter 20
+2026-11-22 19:00:02.616 CST [4340] user=postgres db=comercial app=psql SENTENCIA:  SELECT id, nombre, correo FROM clientes WHERE correo !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$';
+2026-11-22 19:00:02.626 CST [4340] user=postgres db=comercial app=psql ERROR:  no existe la columna «edad» en carácter 20
+2026-11-22 19:00:02.626 CST [4340] user=postgres db=comercial app=psql SENTENCIA:  SELECT id, nombre, edad FROM clientes WHERE edad IS NOT NULL AND (edad < 18 OR edad > 120);
+2026-11-22 19:00:03.422 CST [4340] user=postgres db=comercial app=psql ERROR:  no existe la columna «telefono» en carácter 50
+2026-11-22 19:00:03.422 CST [4340] user=postgres db=comercial app=psql SENTENCIA:  SELECT count(*) AS total, count(*) FILTER (WHERE telefono IS NULL) AS sin_telefono, count(*) FILTER (WHERE rfc IS NULL) AS sin_rfc FROM clientes;
+2026-11-22 19:02:14.902 CST [8880] user= db= app= LOG:  empezando checkpoint: time
+2026-11-22 19:02:22.807 CST [8880] user= db= app= LOG:  checkpoint completo: escritos 72 b�fers (0.4%); escritos 1 b�fers SLRU; 0 archivos WAL a�adidos, 0 eliminados, 0 reciclados; write=7.829 s, sync=0.067 s, total=7.906 s; archivos sincronizados=62, m�s largo=0.005 s, promedio=0.002 s; distancia=306 kB, estimaci�n=306 kB; lsn=0/22DDFD8, lsn de redo=0/22DDF48
+2026-11-22 19:02:47.193 CST [12104] postgres@postgres pgAdmin 4 - DB:postgres LOG:  could not receive data from client: unrecognized winsock error 10054
+2026-11-22 19:02:47.227 CST [22312] user=postgres db=comercial app=pgAdmin 4 - DB:comercial LOG:  could not receive data from client: unrecognized winsock error 10054
+2026-11-22 19:02:47.227 CST [10324] postgres@DBA pgAdmin 4 - DB:DBA LOG:  could not receive data from client: unrecognized winsock error 10054
+2026-11-22 19:02:47.227 CST [10704] postgres@DBA pgAdmin 4 - CONN:9450585 LOG:  no se pudo recibir datos del cliente: unrecognized winsock error 10054
+2026-11-22 19:07:16.392 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: COMMENT ON TABLE public.clientes IS 'Clientes de Comercializadora Norte. Propietario: Gerencia Comercial. Custodio: DBA. Clasificaci¢n: confidencial (contiene datos personales).';
+2026-11-22 19:07:16.401 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: COMMENT ON COLUMN public.clientes.id IS 'Identificador interno del cliente. Generado por el sistema.';
+2026-11-22 19:07:16.408 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: COMMENT ON COLUMN public.clientes.nombre IS 'Nombre completo. Dato personal identificador directo.';
+2026-11-22 19:07:16.410 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: COMMENT ON COLUMN public.clientes.correo IS 'Correo de contacto. Dato personal. Uso: notificaciones al cliente.';
+2026-11-22 19:07:16.411 CST [4340] user=postgres db=comercial app=psql ERROR:  no existe la columna «correo» en la relación «public.clientes»
+2026-11-22 19:07:16.411 CST [4340] user=postgres db=comercial app=psql SENTENCIA:  COMMENT ON COLUMN public.clientes.correo IS 'Correo de contacto. Dato personal. Uso: notificaciones al cliente.';
+2026-11-22 19:07:16.414 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: COMMENT ON COLUMN public.clientes.telefono IS 'Tel‚fono de contacto. Dato personal. Uso: seguimiento comercial y soporte.';
+2026-11-22 19:07:16.414 CST [4340] user=postgres db=comercial app=psql ERROR:  no existe la columna «telefono» en la relación «public.clientes»
+2026-11-22 19:07:16.414 CST [4340] user=postgres db=comercial app=psql SENTENCIA:  COMMENT ON COLUMN public.clientes.telefono IS 'Tel‚fono de contacto. Dato personal. Uso: seguimiento comercial y soporte.';
+2026-11-22 19:07:16.420 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: COMMENT ON COLUMN public.clientes.rfc IS 'RFC del cliente. Dato personal. Uso: facturaci¢n. Cambios auditados en auditoria.cambios_clientes.';
+2026-11-22 19:07:16.420 CST [4340] user=postgres db=comercial app=psql ERROR:  no existe la columna «rfc» en la relación «public.clientes»
+2026-11-22 19:07:16.420 CST [4340] user=postgres db=comercial app=psql SENTENCIA:  COMMENT ON COLUMN public.clientes.rfc IS 'RFC del cliente. Dato personal. Uso: facturaci¢n. Cambios auditados en auditoria.cambios_clientes.';
+2026-11-22 19:07:16.423 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: COMMENT ON COLUMN public.clientes.edad IS 'Edad en a¤os cumplidos. Dato personal. Uso: anal¡tica agregada.';
+2026-11-22 19:07:16.423 CST [4340] user=postgres db=comercial app=psql ERROR:  no existe la columna «edad» en la relación «public.clientes»
+2026-11-22 19:07:16.423 CST [4340] user=postgres db=comercial app=psql SENTENCIA:  COMMENT ON COLUMN public.clientes.edad IS 'Edad en a¤os cumplidos. Dato personal. Uso: anal¡tica agregada.';
+2026-11-22 19:07:16.427 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: COMMENT ON COLUMN public.clientes.ciudad IS 'Ciudad de residencia o domicilio fiscal. Dato de ubicaci¢n. Uso: segmentaci¢n geogr fica y log¡stica.';
+2026-11-22 19:07:16.427 CST [4340] user=postgres db=comercial app=psql ERROR:  no existe la columna «ciudad» en la relación «public.clientes»
+2026-11-22 19:07:16.427 CST [4340] user=postgres db=comercial app=psql SENTENCIA:  COMMENT ON COLUMN public.clientes.ciudad IS 'Ciudad de residencia o domicilio fiscal. Dato de ubicaci¢n. Uso: segmentaci¢n geogr fica y log¡stica.';
+2026-11-22 19:07:16.430 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: COMMENT ON COLUMN public.clientes.codigo_postal IS 'C¢digo postal del cliente. Dato de ubicaci¢n. Uso: validaci¢n fiscal y env¡os.';
+2026-11-22 19:07:16.431 CST [4340] user=postgres db=comercial app=psql ERROR:  no existe la columna «codigo_postal» en la relación «public.clientes»
+2026-11-22 19:07:16.431 CST [4340] user=postgres db=comercial app=psql SENTENCIA:  COMMENT ON COLUMN public.clientes.codigo_postal IS 'C¢digo postal del cliente. Dato de ubicaci¢n. Uso: validaci¢n fiscal y env¡os.';
+2026-11-22 19:07:16.437 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: COMMENT ON COLUMN public.clientes.fecha_alta IS 'Fecha de registro del cliente en el sistema. Metadato operativo generado autom ticamente.';
+2026-11-22 19:07:16.437 CST [4340] user=postgres db=comercial app=psql ERROR:  no existe la columna «fecha_alta» en la relación «public.clientes»
+2026-11-22 19:07:16.437 CST [4340] user=postgres db=comercial app=psql SENTENCIA:  COMMENT ON COLUMN public.clientes.fecha_alta IS 'Fecha de registro del cliente en el sistema. Metadato operativo generado autom ticamente.';
+2026-11-22 19:07:16.440 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: COMMENT ON COLUMN public.clientes.segmento IS 'Clasificaci¢n comercial del cliente (B sico, Est ndar, Premium). Uso: estrategias de venta.';
+2026-11-22 19:09:30.740 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: DROP TABLE public.clientes CASCADE;
+2026-11-22 19:09:30.769 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: CREATE TABLE public.clientes (
+	    id BIGSERIAL PRIMARY KEY,
+	    nombre VARCHAR(120) NOT NULL,
+	    correo VARCHAR(150) NOT NULL,
+	    telefono VARCHAR(20),
+	    rfc VARCHAR(13),
+	    edad INT,
+	    ciudad VARCHAR(80),
+	    codigo_postal VARCHAR(10),
+	    fecha_alta DATE DEFAULT CURRENT_DATE
+	);
+2026-11-22 19:09:30.779 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: ALTER TABLE clientes ADD COLUMN segmento VARCHAR(20);
+2026-11-22 19:09:30.781 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: GRANT SELECT, UPDATE ON public.clientes TO app_ventas;
+2026-11-22 19:09:30.783 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: GRANT SELECT, UPDATE ON public.clientes TO soporte_ana;
+2026-11-22 19:09:30.784 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: REVOKE UPDATE ON public.clientes FROM soporte_ana;
+2026-11-22 19:09:30.789 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: CREATE TRIGGER trg_auditoria_clientes
+	AFTER INSERT OR UPDATE OR DELETE ON public.clientes
+	FOR EACH ROW EXECUTE FUNCTION auditoria.fn_auditar_clientes();
+2026-11-22 19:09:30.797 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: INSERT INTO public.clientes (nombre, correo, telefono, rfc, edad, ciudad, codigo_postal, fecha_alta, segmento) VALUES
+	('Ana L¢pez', 'ana.lopez@example.test', '6671112233', 'LOAA850315AB1', 41, 'Culiac n', '80000', '2025-01-15', 'Premium'),
+	('Mar¡a Garc¡a', 'maria.garcia@example.test', '6672223344', 'GARM900520XY2', 35, 'Mazatl n', '82000', '2025-02-10', 'Est ndar'),
+	('Carlos Ruiz', 'carlos.ruiz@example.test', '6673334455', 'RUIC881102KL9', 38, 'Los Mochis', '81200', '2025-03-05', 'Est ndar'),
+	('Laura M‚ndez', 'laura.mendez@example.test', '6674445566', 'MENL920714PQ3', 33, 'Culiac n', '80010', '2025-04-12', 'Premium'),
+	('Roberto Soto', 'roberto.soto@example.test', '6675556677', 'SOTR790930MN4', 46, 'Guasave', '81000', '2025-05-20', 'B sico'),
+	('Elena Castro', 'elena.castro@example.test', '6676667788', 'CASE951208RT5', 30, 'Culiac n', '80020', '2025-06-18', 'B sico');
+2026-11-22 19:09:30.806 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: UPDATE public.clientes SET rfc = 'GARM900520ZZ9' WHERE id = 2;
+2026-11-22 19:09:30.812 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: ALTER TABLE public.clientes DISABLE TRIGGER trg_auditoria_clientes;
+2026-11-22 19:09:30.813 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: ALTER TABLE public.clientes ENABLE TRIGGER trg_auditoria_clientes;
+2026-11-22 19:09:30.822 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: INSERT INTO clientes (nombre, correo, telefono, rfc, edad, ciudad, codigo_postal)
+	VALUES
+	('Ana Lopez', 'ANA.LOPEZ@example.test', '6671234567', 'LOAA850315AB', 41, 'Culiacan', '80000'),
+	('Jorge D¡az', 'sin-correo', '667', NULL, -3, 'Culiac n', '8000');
+2026-11-22 19:09:31.097 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: COMMENT ON TABLE public.clientes IS 'Clientes de Comercializadora Norte. Propietario: Gerencia Comercial. Custodio: DBA. Clasificaci¢n: confidencial (contiene datos personales).';
+2026-11-22 19:09:31.099 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: COMMENT ON COLUMN public.clientes.id IS 'Identificador interno del cliente. Generado por el sistema.';
+2026-11-22 19:09:31.101 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: COMMENT ON COLUMN public.clientes.nombre IS 'Nombre completo. Dato personal identificador directo.';
+2026-11-22 19:09:31.103 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: COMMENT ON COLUMN public.clientes.correo IS 'Correo de contacto. Dato personal. Uso: notificaciones al cliente.';
+2026-11-22 19:09:31.104 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: COMMENT ON COLUMN public.clientes.telefono IS 'Tel‚fono de contacto. Dato personal. Uso: seguimiento comercial y soporte.';
+2026-11-22 19:09:31.106 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: COMMENT ON COLUMN public.clientes.rfc IS 'RFC del cliente. Dato personal. Uso: facturaci¢n. Cambios auditados en auditoria.cambios_clientes.';
+2026-11-22 19:09:31.108 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: COMMENT ON COLUMN public.clientes.edad IS 'Edad en a¤os cumplidos. Dato personal. Uso: anal¡tica agregada.';
+2026-11-22 19:09:31.114 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: COMMENT ON COLUMN public.clientes.ciudad IS 'Ciudad de residencia o domicilio fiscal. Dato de ubicaci¢n. Uso: segmentaci¢n geogr fica y log¡stica.';
+2026-11-22 19:09:31.118 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: COMMENT ON COLUMN public.clientes.codigo_postal IS 'C¢digo postal del cliente. Dato de ubicaci¢n. Uso: validaci¢n fiscal y env¡os.';
+2026-11-22 19:09:31.132 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: COMMENT ON COLUMN public.clientes.fecha_alta IS 'Fecha de registro del cliente en el sistema. Metadato operativo generado autom ticamente.';
+2026-11-22 19:09:32.027 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: COMMENT ON COLUMN public.clientes.segmento IS 'Clasificaci¢n comercial del cliente (B sico, Est ndar, Premium). Uso: estrategias de venta.';
+2026-11-22 19:12:14.838 CST [8880] user= db= app= LOG:  empezando checkpoint: time
+2026-11-22 19:12:21.883 CST [8880] user= db= app= LOG:  checkpoint completo: escritos 64 b�fers (0.4%); escritos 1 b�fers SLRU; 0 archivos WAL a�adidos, 0 eliminados, 0 reciclados; write=6.991 s, sync=0.040 s, total=7.048 s; archivos sincronizados=46, m�s largo=0.010 s, promedio=0.001 s; distancia=285 kB, estimaci�n=304 kB; lsn=0/2325708, lsn de redo=0/2325678
+2026-11-22 19:15:34.211 CST [17700] user=[desconocido] db=[desconocido] app=[desconocido] LOG:  conexi�n recibida: host=::1 port=61096
+2026-11-22 19:15:39.270 CST [24840] user=[desconocido] db=[desconocido] app=[desconocido] LOG:  conexi�n recibida: host=::1 port=61117
+2026-11-22 19:15:39.287 CST [24840] user=postgres db=comercial app=[desconocido] LOG:  conexi�n autenticada: identidad=�postgres� m�todo=scram-sha-256 (C:/Program Files/PostgreSQL/18/data/pg_hba.conf:117)
+2026-11-22 19:15:39.287 CST [24840] user=postgres db=comercial app=[desconocido] LOG:  conexi�n autorizada: usuario=postgres base_de_datos=comercial nombre_de_aplicaci�n=psql
+2026-11-22 19:15:39.305 CST [24840] user=postgres db=comercial app=psql LOG:  desconexión: duración de sesión: 0:00:00.053 usuario=postgres base=comercial host=::1 port=61117
+2026-11-22 19:17:14.898 CST [8880] user= db= app= LOG:  empezando checkpoint: time
+2026-11-22 19:17:15.907 CST [8880] user= db= app= LOG:  checkpoint completo: escritos 9 b�fers (0.1%); escritos 0 b�fers SLRU; 0 archivos WAL a�adidos, 0 eliminados, 0 reciclados; write=0.978 s, sync=0.013 s, total=1.011 s; archivos sincronizados=5, m�s largo=0.004 s, promedio=0.003 s; distancia=55 kB, estimaci�n=279 kB; lsn=0/23334B8, lsn de redo=0/2333460
+2026-11-22 19:24:51.012 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: ALTER TABLE public.clientes
+	    DROP CONSTRAINT IF EXISTS chk_clientes_rfc_formato,
+	    DROP CONSTRAINT IF EXISTS chk_clientes_correo_formato,
+	    DROP CONSTRAINT IF EXISTS chk_clientes_edad_rango;
+2026-11-22 19:24:51.038 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: ALTER TABLE public.clientes
+	    ADD CONSTRAINT chk_clientes_rfc_formato
+	        CHECK (rfc ~ '^[A-Z&]{3,4}[0-9]{6}[A-Z0-9]{3}$') NOT VALID,
+	    ADD CONSTRAINT chk_clientes_correo_formato
+	        CHECK (correo ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$') NOT VALID,
+	    ADD CONSTRAINT chk_clientes_edad_rango
+	        CHECK (edad IS NULL OR (edad >= 18 AND edad <= 120)) NOT VALID;
+2026-11-22 19:24:51.053 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: CREATE OR REPLACE VIEW public.vw_clientes_soporte AS
+	SELECT
+	    id,
+	    nombre,
+	    regexp_replace(correo, '(^.).*(@.*$)', '\1***\2') AS correo_enmascarado,
+	    CASE WHEN telefono IS NOT NULL THEN '******' || right(telefono, 4) ELSE NULL END AS telefono_enmascarado,
+	    CASE WHEN rfc IS NOT NULL THEN left(rfc, 4) || '******' || right(rfc, 3) ELSE NULL END AS rfc_enmascarado,
+	    ciudad,
+	    segmento
+	FROM public.clientes;
+2026-11-22 19:24:51.059 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: REVOKE SELECT ON public.clientes FROM soporte_ana;
+2026-11-22 19:24:51.061 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: GRANT SELECT ON public.vw_clientes_soporte TO soporte_ana;
+2026-11-22 19:25:52.033 CST [24196] user=[desconocido] db=[desconocido] app=[desconocido] LOG:  conexi�n recibida: host=::1 port=64236
+2026-11-22 19:25:57.279 CST [26380] user=[desconocido] db=[desconocido] app=[desconocido] LOG:  conexi�n recibida: host=::1 port=64260
+2026-11-22 19:25:57.295 CST [26380] user=postgres db=comercial app=[desconocido] LOG:  conexi�n autenticada: identidad=�postgres� m�todo=scram-sha-256 (C:/Program Files/PostgreSQL/18/data/pg_hba.conf:117)
+2026-11-22 19:25:57.295 CST [26380] user=postgres db=comercial app=[desconocido] LOG:  conexi�n autorizada: usuario=postgres base_de_datos=comercial nombre_de_aplicaci�n=psql
+2026-11-22 19:25:57.300 CST [26380] user=postgres db=comercial app=psql LOG:  sentencia: ALTER TABLE public.clientes
+	    DROP CONSTRAINT IF EXISTS chk_clientes_rfc_formato,
+	    DROP CONSTRAINT IF EXISTS chk_clientes_correo_formato,
+	    DROP CONSTRAINT IF EXISTS chk_clientes_edad_rango;
+2026-11-22 19:25:57.305 CST [26380] user=postgres db=comercial app=psql LOG:  sentencia: ALTER TABLE public.clientes
+	    ADD CONSTRAINT chk_clientes_rfc_formato
+	        CHECK (rfc ~ '^[A-Z&]{3,4}[0-9]{6}[A-Z0-9]{3}$') NOT VALID,
+	    ADD CONSTRAINT chk_clientes_correo_formato
+	        CHECK (correo ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$') NOT VALID,
+	    ADD CONSTRAINT chk_clientes_edad_rango
+	        CHECK (edad IS NULL OR (edad >= 18 AND edad <= 120)) NOT VALID;
+2026-11-22 19:25:57.307 CST [26380] user=postgres db=comercial app=psql LOG:  sentencia: CREATE OR REPLACE VIEW public.vw_clientes_soporte AS
+	SELECT
+	    id,
+	    nombre,
+	    regexp_replace(correo, '(^.).*(@.*$)', '\1***\2') AS correo_enmascarado,
+	    CASE WHEN telefono IS NOT NULL THEN '******' || right(telefono, 4) ELSE NULL END AS telefono_enmascarado,
+	    CASE WHEN rfc IS NOT NULL THEN left(rfc, 4) || '******' || right(rfc, 3) ELSE NULL END AS rfc_enmascarado,
+	    ciudad,
+	    segmento
+	FROM public.clientes;
+2026-11-22 19:25:57.309 CST [26380] user=postgres db=comercial app=psql LOG:  sentencia: REVOKE SELECT ON public.clientes FROM soporte_ana;
+2026-11-22 19:25:57.310 CST [26380] user=postgres db=comercial app=psql LOG:  sentencia: GRANT SELECT ON public.vw_clientes_soporte TO soporte_ana;
+2026-11-22 19:25:57.330 CST [26380] user=postgres db=comercial app=psql LOG:  disconnection: session time: 0:00:00.068 user=postgres database=comercial host=::1 port=64260
+2026-11-22 19:27:14.921 CST [8880] user= db= app= LOG:  empezando checkpoint: time
+2026-11-22 19:27:18.454 CST [8880] user= db= app= LOG:  checkpoint completo: escritos 32 b�fers (0.2%); escritos 1 b�fers SLRU; 0 archivos WAL a�adidos, 0 eliminados, 0 reciclados; write=3.489 s, sync=0.023 s, total=3.535 s; archivos sincronizados=29, m�s largo=0.003 s, promedio=0.001 s; distancia=155 kB, estimaci�n=266 kB; lsn=0/235A0F8, lsn de redo=0/235A0A0
+2026-11-22 19:31:09.147 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: DROP VIEW IF EXISTS public.vw_clientes_soporte;
+2026-11-22 19:31:09.157 CST [4340] user=postgres db=comercial app=psql LOG:  sentencia: GRANT SELECT ON public.clientes TO soporte_ana;
+2026-11-22 19:31:10.082 CST [4340] user=postgres db=comercial app=psql ERROR:  syntax error at or near "pg_namespace" en carácter 1
+2026-11-22 19:31:10.082 CST [4340] user=postgres db=comercial app=psql SENTENCIA:  pg_namespace n ON n.oid = p.pronamespace
+	WHERE n.nspname IN ('public', 'auditoria', 'dba');
+2026-11-22 19:32:14.468 CST [8880] user= db= app= LOG:  empezando checkpoint: time
+2026-11-22 19:32:15.693 CST [8880] user= db= app= LOG:  checkpoint completo: escritos 11 b�fers (0.1%); escritos 1 b�fers SLRU; 0 archivos WAL a�adidos, 0 eliminados, 0 reciclados; write=1.195 s, sync=0.017 s, total=1.226 s; archivos sincronizados=12, m�s largo=0.002 s, promedio=0.002 s; distancia=47 kB, estimaci�n=244 kB; lsn=0/2366070, lsn de redo=0/2366018
+2026-11-22 19:39:09.774 CST [10448] user=[desconocido] db=[desconocido] app=[desconocido] LOG:  conexi�n recibida: host=::1 port=59260
+2026-11-22 19:39:09.789 CST [10448] user=postgres db=comercial app=[desconocido] LOG:  conexi�n autenticada: identidad=�postgres� m�todo=scram-sha-256 (C:/Program Files/PostgreSQL/18/data/pg_hba.conf:117)
+2026-11-22 19:39:09.789 CST [10448] user=postgres db=comercial app=[desconocido] LOG:  conexi�n autorizada: usuario=postgres base_de_datos=comercial nombre_de_aplicaci�n=psql
+2026-11-22 19:39:09.799 CST [10448] user=postgres db=comercial app=psql LOG:  disconnection: session time: 0:00:00.040 user=postgres database=comercial host=::1 port=59260
+2026-11-22 19:39:09.875 CST [6436] user=[desconocido] db=[desconocido] app=[desconocido] LOG:  conexi�n recibida: host=::1 port=59263
+2026-11-22 19:39:09.889 CST [6436] user=postgres db=comercial app=[desconocido] LOG:  conexi�n autenticada: identidad=�postgres� m�todo=scram-sha-256 (C:/Program Files/PostgreSQL/18/data/pg_hba.conf:117)
+2026-11-22 19:39:09.889 CST [6436] user=postgres db=comercial app=[desconocido] LOG:  conexi�n autorizada: usuario=postgres base_de_datos=comercial nombre_de_aplicaci�n=psql
+2026-11-22 19:39:09.902 CST [6436] user=postgres db=comercial app=psql LOG:  desconexión: duración de sesión: 0:00:00.041 usuario=postgres base=comercial host=::1 port=59263
+2026-11-22 19:39:09.981 CST [23088] user=[desconocido] db=[desconocido] app=[desconocido] LOG:  conexi�n recibida: host=::1 port=59266
+2026-11-22 19:39:09.998 CST [23088] user=postgres db=comercial app=[desconocido] LOG:  conexi�n autenticada: identidad=�postgres� m�todo=scram-sha-256 (C:/Program Files/PostgreSQL/18/data/pg_hba.conf:117)
+2026-11-22 19:39:09.998 CST [23088] user=postgres db=comercial app=[desconocido] LOG:  conexi�n autorizada: usuario=postgres base_de_datos=comercial nombre_de_aplicaci�n=psql
+2026-11-22 19:39:10.003 CST [23088] user=postgres db=comercial app=psql LOG:  desconexión: duración de sesión: 0:00:00.036 usuario=postgres base=comercial host=::1 port=59266
+2026-11-22 19:39:10.080 CST [12828] user=[desconocido] db=[desconocido] app=[desconocido] LOG:  conexi�n recibida: host=::1 port=59271
+2026-11-22 19:39:10.095 CST [12828] user=postgres db=comercial app=[desconocido] LOG:  conexi�n autenticada: identidad=�postgres� m�todo=scram-sha-256 (C:/Program Files/PostgreSQL/18/data/pg_hba.conf:117)
+2026-11-22 19:39:10.095 CST [12828] user=postgres db=comercial app=[desconocido] LOG:  conexi�n autorizada: usuario=postgres base_de_datos=comercial nombre_de_aplicaci�n=psql
+2026-11-22 19:39:10.100 CST [12828] user=postgres db=comercial app=psql LOG:  desconexión: duración de sesión: 0:00:00.037 usuario=postgres base=comercial host=::1 port=59271
+2026-11-22 19:39:10.327 CST [23824] user=[desconocido] db=[desconocido] app=[desconocido] LOG:  conexi�n recibida: host=::1 port=59275
+2026-11-22 19:39:10.351 CST [23824] user=postgres db=comercial app=[desconocido] LOG:  conexi�n autenticada: identidad=�postgres� m�todo=scram-sha-256 (C:/Program Files/PostgreSQL/18/data/pg_hba.conf:117)
+2026-11-22 19:39:10.351 CST [23824] user=postgres db=comercial app=[desconocido] LOG:  conexi�n autorizada: usuario=postgres base_de_datos=comercial nombre_de_aplicaci�n=psql
+2026-11-22 19:39:10.360 CST [23824] user=postgres db=comercial app=psql ERROR:  secuencia de bytes no válida para codificación «UTF8»: 0xfa
+2026-11-22 19:39:10.360 CST [23824] user=postgres db=comercial app=psql SENTENCIA:  SELECT linea FROM dba.bitacora ORDER BY num;
+2026-11-22 19:39:10.579 CST [23824] user=postgres db=comercial app=psql LOG:  desconexión: duración de sesión: 0:00:00.269 usuario=postgres base=comercial host=::1 port=59275
+2026-11-22 19:40:27.544 CST [3676] user=[desconocido] db=[desconocido] app=[desconocido] LOG:  conexi�n recibida: host=::1 port=50436
+2026-11-22 19:40:27.558 CST [3676] user=postgres db=comercial app=[desconocido] LOG:  conexi�n autenticada: identidad=�postgres� m�todo=scram-sha-256 (C:/Program Files/PostgreSQL/18/data/pg_hba.conf:117)
+2026-11-22 19:40:27.558 CST [3676] user=postgres db=comercial app=[desconocido] LOG:  conexi�n autorizada: usuario=postgres base_de_datos=comercial nombre_de_aplicaci�n=psql
+2026-11-22 19:40:27.562 CST [3676] user=postgres db=comercial app=psql LOG:  desconexión: duración de sesión: 0:00:00.033 usuario=postgres base=comercial host=::1 port=50436
+2026-11-22 19:40:27.628 CST [9136] user=[desconocido] db=[desconocido] app=[desconocido] LOG:  conexi�n recibida: host=::1 port=50438
+2026-11-22 19:40:27.643 CST [9136] user=postgres db=comercial app=[desconocido] LOG:  conexi�n autenticada: identidad=�postgres� m�todo=scram-sha-256 (C:/Program Files/PostgreSQL/18/data/pg_hba.conf:117)
+2026-11-22 19:40:27.643 CST [9136] user=postgres db=comercial app=[desconocido] LOG:  conexi�n autorizada: usuario=postgres base_de_datos=comercial nombre_de_aplicaci�n=psql
+2026-11-22 19:40:27.646 CST [9136] user=postgres db=comercial app=psql LOG:  desconexión: duración de sesión: 0:00:00.031 usuario=postgres base=comercial host=::1 port=50438

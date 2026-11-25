@@ -1,0 +1,11 @@
+     parametro      |             valor              |       origen       
+--------------------+--------------------------------+--------------------
+ log_connections    | on                             | configuration file
+ log_directory      | log                            | default
+ log_disconnections | on                             | configuration file
+ log_filename       | postgresql-%Y-%m-%d_%H%M%S.log | default
+ log_line_prefix    | %m [%p] user=%u db=%d app=%a   | configuration file
+ log_statement      | mod                            | configuration file
+ logging_collector  | on                             | configuration file
+(7 rows)
+

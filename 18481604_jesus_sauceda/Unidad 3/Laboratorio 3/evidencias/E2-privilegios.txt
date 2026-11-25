@@ -1,0 +1,15 @@
+     rol      | superusuario | puede_conectar | expiracion 
+--------------+--------------+----------------+------------
+ app_ventas   | f            | t              | 
+ postgres     | t            | t              | 
+ rol_temporal | f            | t              | 
+ soporte_ana  | f            | t              | 
+(4 rows)
+
+     rol     | esquema |  objeto  | privilegio 
+-------------+---------+----------+------------
+ app_ventas  | public  | clientes | SELECT
+ app_ventas  | public  | clientes | UPDATE
+ soporte_ana | public  | clientes | SELECT
+(3 rows)
+
